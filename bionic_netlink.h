@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 The Android Open Source Project
+ * Copyright (C) 2016 The Android Open Source Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,34 +26,34 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _IFADDRS_H_
-#define _IFADDRS_H_
+#ifndef BIONIC_NETLINK_H
+#define BIONIC_NETLINK_H
 
-#include <sys/cdefs.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
+#include <sys/types.h>
 
-__BEGIN_DECLS
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 
-struct ifaddrs {
-  struct ifaddrs* ifa_next;
-  char* ifa_name;
-  unsigned int ifa_flags;
-  struct sockaddr* ifa_addr;
-  struct sockaddr* ifa_netmask;
-  union {
-    struct sockaddr* ifu_broadaddr;
-    struct sockaddr* ifu_dstaddr;
-  } ifa_ifu;
-  void* ifa_data;
+struct nlmsghdr;
+
+class NetlinkConnection {
+ public:
+  NetlinkConnection();
+  ~NetlinkConnection();
+
+  bool SendRequest(int type);
+  bool ReadResponses(void callback(void*, nlmsghdr*), void* context);
+
+ private:
+  int fd_;
+  char* data_;
+  size_t size_;
 };
 
-#define ifa_broadaddr ifa_ifu.ifu_broadaddr
-#define ifa_dstaddr ifa_ifu.ifu_dstaddr
-
-void freeifaddrs(struct ifaddrs*);
-int getifaddrs(struct ifaddrs**);
-
-__END_DECLS
+#if !defined(__clang__)
+// GCC gets confused by NLMSG_DATA and doesn't realize that the old-style
+// cast is from a system header and should be ignored.
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#endif
 
 #endif
