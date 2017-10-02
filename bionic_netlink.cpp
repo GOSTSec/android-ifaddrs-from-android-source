@@ -41,6 +41,13 @@
 
 #include "ErrnoRestorer.h"
 
+#define TEMP_FAILURE_RETRY1(exp) ({         \
+    decltype (exp) _rc;                      \
+    do {                                   \
+        _rc = (exp);                       \
+    } while (_rc == -1 && errno == EINTR); \
+    _rc; })
+
 NetlinkConnection::NetlinkConnection() {
   fd_ = -1;
 
@@ -82,13 +89,13 @@ bool NetlinkConnection::SendRequest(int type) {
   request.hdr.nlmsg_type = type;
   request.hdr.nlmsg_len = sizeof(request);
   request.msg.rtgen_family = AF_UNSPEC; // All families.
-  return (TEMP_FAILURE_RETRY(send(fd_, &request, sizeof(request), 0)) == sizeof(request));
+  return (TEMP_FAILURE_RETRY1(send(fd_, &request, sizeof(request), 0)) == sizeof(request));
 }
 
 bool NetlinkConnection::ReadResponses(void callback(void*, nlmsghdr*), void* context) {
   // Read through all the responses, handing interesting ones to the callback.
   ssize_t bytes_read;
-  while ((bytes_read = TEMP_FAILURE_RETRY(recv(fd_, data_, size_, 0))) > 0) {
+  while ((bytes_read = TEMP_FAILURE_RETRY1(recv(fd_, data_, size_, 0))) > 0) {
     nlmsghdr* hdr = reinterpret_cast<nlmsghdr*>(data_);
     for (; NLMSG_OK(hdr, static_cast<size_t>(bytes_read)); hdr = NLMSG_NEXT(hdr, bytes_read)) {
       if (hdr->nlmsg_type == NLMSG_DONE) return true;
